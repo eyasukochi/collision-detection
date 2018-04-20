@@ -1,12 +1,12 @@
-ESP-IDF template app
+Forward Collision Detection System
 ====================
 
-This is a template application to be used with `Espressif IoT Development Framework`_ (ESP-IDF). 
+This is the software behind an effort to create a low cost forward collision detection sensor add on for cars. 
 
-Please check ESP-IDF docs for getting started instructions.
+Based on the ESP-32s, TFMini Lidar, and a cheapo mono audio amp + speaker.
 
-Code in this repository is Copyright (C) 2016 Espressif Systems, licensed under the Apache License 2.0 as described in the file LICENSE.
-
-.. _Espressif IoT Development Framework: https://github.com/espressif/esp-idf
+TODO:
+- Develop data processing algorithm for effectively estimating acceleration.
+- Add dynamically generated tone output as warning indicators
 
 
