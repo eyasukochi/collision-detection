@@ -14,6 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
+#include "soc/rtc.h"
 
 
 static char tag[]="collision-detection";
@@ -26,9 +27,19 @@ static char tag[]="collision-detection";
 #define BUF_SIZE (256) // frankly, just so it's bigger than the hardware buffer size (UART_FIFO_LEN)
 
 extern "C" {
+	#include "dac-cosine.h"
 	void app_main(void);
 }
 
+/* Declare global sine waveform parameters
+ * so they may be then accessed and changed from debugger
+ * over an JTAG interface
+ */
+int clk_8m_div = 0;      // RTC 8M clock divider (division is by clk_8m_div+1, i.e. 0 means 8MHz frequency)
+int frequency_step = 8;  // Frequency step for CW generator
+int scale = 1;           // 50% of the full scale
+int offset;              // leave it default / 0 = no any offset
+int invert = 2;          // invert MSB to get sine waveform
 
 uint8_t* data = (uint8_t*) malloc(1);
 
@@ -37,7 +48,7 @@ static uint8_t read_one_byte(){
 	return data[0];
 }
 
-static void echo_task(void *arg)
+static void detect_task(void *arg)
 {
     /* Configure parameters of an UART driver,
      * communication pins and install the driver */
@@ -90,8 +101,35 @@ static void echo_task(void *arg)
 	free(data);
 }
 
+static void sound_task(void *arg) {
+		dac_cosine_enable(DAC_CHANNEL_1);
+//	    dac_cosine_enable(DAC_CHANNEL_2);
+
+	    dac_output_enable(DAC_CHANNEL_1);
+//	    dac_output_enable(DAC_CHANNEL_2);
+
+	    while(1){
+
+			// frequency setting is common to both channels
+			dac_frequency_set(clk_8m_div, frequency_step);
+
+			/* Tune parameters of channel 2 only
+			 * to see and compare changes against channel 1
+			 */
+			dac_scale_set(DAC_CHANNEL_1, scale);
+			dac_offset_set(DAC_CHANNEL_1, offset);
+			dac_invert_set(DAC_CHANNEL_1, invert);
+
+			float frequency = RTC_FAST_CLK_FREQ_APPROX / (1 + clk_8m_div) * (float) frequency_step / 65536;
+			printf("clk_8m_div: %d, frequency step: %d, frequency: %.0f Hz\n", clk_8m_div, frequency_step, frequency);
+			printf("DAC2 scale: %d, offset %d, invert: %d\n", scale, offset, invert);
+			vTaskDelay(2000/portTICK_PERIOD_MS);
+		}
+}
+
 void app_main(void)
 {
-	xTaskCreate(echo_task, "uart_echo_task", 1024, NULL, 10, NULL);
+	xTaskCreate(sound_task, "dactask", 1024*3, NULL, 10, NULL);
+//	xTaskCreate(detect_task, "uart_echo_task", 1024, NULL, 10, NULL);
 }
 
